@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::{ev::SubmitEvent, html::Input, *};
 
 #[derive(Debug, Clone)]
 struct DatabaseEntry {
@@ -8,6 +8,13 @@ struct DatabaseEntry {
 
 #[component]
 pub fn App() -> impl IntoView {
+    let (cinp_val, set_cinp_val) = create_signal("initial value".to_string());
+    let (ucinp_val, set_ucinp_val) = create_signal("uncontrolled initial value".to_string());
+    let uncontrolled_input: NodeRef<Input> = create_node_ref();
+
+    let (value, _set_value) = create_signal(10);
+    let is_odd = move || value.get() & 1 == 1;
+
     let (count, set_count) = create_signal(0);
     let double_count = move || count.get() * 2;
     set_count.set(0);
@@ -27,10 +34,38 @@ pub fn App() -> impl IntoView {
         },
     ]);
 
+    let on_submit = move |ev: SubmitEvent| {
+        ev.prevent_default();
+
+        let val = uncontrolled_input.get().expect("input exists").value();
+
+        set_ucinp_val.update(|v| *v = val);
+    };
+
     let values = vec![0, 1, 2];
 
     let html = "<p>hi!</p>";
+    let msg = move || if is_odd() { "Odd" } else { "Even" };
     view! {
+        <p>
+            {msg}
+        </p>
+            <Show when=move || { value.get() > 5 } fallback=|| view! {<p>"Small"</p>}> // use this
+                                                                                       // for
+                                                                                       // expensive
+                                                                                       // rerender
+                                                                                       // logic
+                <p>"Big"</p>
+            </Show>
+        <br />
+        <input type="text" on:input=move |ev| {set_cinp_val.update(|v| *v = event_target_value(&ev));} prop:value={cinp_val}/> -> input value is: {cinp_val}
+        <br/>
+        <form on:submit=on_submit>
+            <input type="text" value=ucinp_val node_ref=uncontrolled_input />
+            <input type="submit" value="send" />
+        </form>
+        Value of uncontrolled input: {ucinp_val}
+        <br/>
         <button on:click=move |_| {
             data.with(|data| {
                 for row in data {
@@ -46,6 +81,7 @@ pub fn App() -> impl IntoView {
             "Click Me: "
             {count}
         </button>
+        <br/>
         <Progress max=50 progress=count />
         <Progress progress=double_count />
         <div inner_html=html/>
