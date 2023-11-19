@@ -12,6 +12,8 @@ pub fn App() -> impl IntoView {
     let (ucinp_val, set_ucinp_val) = create_signal("uncontrolled initial value".to_string());
     let uncontrolled_input: NodeRef<Input> = create_node_ref();
 
+    provide_context(set_cinp_val);
+
     let (value, _set_value) = create_signal(10);
     let is_odd = move || value.get() & 1 == 1;
 
@@ -101,6 +103,8 @@ pub fn App() -> impl IntoView {
         >
             <p>{child.value}</p>
         </For>
+        <br/>
+        <NumericInput />
     }
 }
 
@@ -114,5 +118,37 @@ pub fn Progress(
 ) -> impl IntoView {
     view! {
         <progress max=max value=progress />
+    }
+}
+
+#[component]
+pub fn NumericInput() -> impl IntoView {
+    let (value, set_value) = create_signal(Ok(0));
+    let _setter = use_context::<WriteSignal<String>>().expect("context is there"); // use from a
+                                                                                   // parent
+                                                                                   // component,
+                                                                                   // without
+                                                                                   // having to
+                                                                                   // pass it
+                                                                                   // through the
+                                                                                   // whole tree
+
+    let on_input = move |ev| set_value.update(|v| *v = event_target_value(&ev).parse::<i32>());
+    view! {
+        <h1>"Error Handling"</h1>
+        <label>
+            "Type a number: (or not!) "
+            <input type="number" on:input=on_input/>
+            <ErrorBoundary
+            fallback=|errors| view! {
+                <div class="error"><p>"Not a number!"</p>
+                    <ul>
+                        {move || errors.get().into_iter().map(|(_, e)| view! { <li>{e.to_string()}</li>}).collect_view()}
+                    </ul>
+                </div>
+            }>
+            <p>"You entered " <strong>{value}</strong></p>
+            </ErrorBoundary>
+        </label>
     }
 }

@@ -6,6 +6,7 @@ Example for a real-time, collaborative web app using CRDTs in Rust
 
 * Axum
 * Leptos
+* TODO: use Leptosfmt https://github.com/bram209/leptosfmt with rust analyzer
 
 ## Setup
 
