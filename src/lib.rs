@@ -6,6 +6,9 @@ struct DatabaseEntry {
     value: RwSignal<i32>,
 }
 
+// Important: https://leptos-rs.github.io/leptos/reactivity/working_with_signals.html (with macro!)
+// Split up Component and Logic for complex components for testing
+
 #[component]
 pub fn App() -> impl IntoView {
     let (cinp_val, set_cinp_val) = create_signal("initial value".to_string());
@@ -35,6 +38,12 @@ pub fn App() -> impl IntoView {
             value: create_rw_signal(15),
         },
     ]);
+
+    create_effect(move |_| {
+        logging::log!("Value: {}", count.get());
+    });
+    // DON'T update state in effects - use derived signals, or memos for that
+    // Effects are only for side-effects
 
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
@@ -133,7 +142,7 @@ pub fn NumericInput() -> impl IntoView {
                                                                                    // through the
                                                                                    // whole tree
 
-    let on_input = move |ev| set_value.update(|v| *v = event_target_value(&ev).parse::<i32>());
+    let on_input = move |ev| set_value.set(event_target_value(&ev).parse::<i32>());
     view! {
         <h1>"Error Handling"</h1>
         <label>
