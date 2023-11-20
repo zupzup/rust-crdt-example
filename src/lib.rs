@@ -1,4 +1,5 @@
 use leptos::{ev::SubmitEvent, html::Input, *};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 struct DatabaseEntry {
@@ -114,6 +115,9 @@ pub fn App() -> impl IntoView {
         </For>
         <br/>
         <NumericInput />
+        <br/>
+        <br/>
+        <PeopleComponent />
     }
 }
 
@@ -160,4 +164,41 @@ pub fn NumericInput() -> impl IntoView {
             </ErrorBoundary>
         </label>
     }
+}
+
+#[component]
+pub fn PeopleComponent() -> impl IntoView {
+    let people = create_resource(|| (), |_| async move { fetch_data().await });
+
+    view! {
+        <div>
+        {move || match people.get() {
+            Some(Some(ppl)) => view! { <p>{format!("name: {}, height: {}, hair color: {}", ppl.name, ppl.height, ppl.hair_color)}</p> }.into_view(),
+            None => view! { <p>"Loading1"</p> }.into_view(),
+            Some(None) => view! { <p>"Loading2"</p> }.into_view()
+        }}
+        </div>
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct People {
+    name: String,
+    height: String,
+    hair_color: String,
+}
+
+const SWAPI_URL: &str = "https://swapi.dev/api/people/1";
+
+// API
+async fn fetch_data() -> Option<People> {
+    let json = gloo_net::http::Request::get(SWAPI_URL)
+        .send()
+        .await
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+    logging::log!("json: {}", json);
+    People::de(&json).ok()
 }
