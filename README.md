@@ -10,6 +10,7 @@ Example for a real-time, collaborative web app using CRDTs in Rust
     * Frontend
         * Create basic UI
         * Connect to websockets
+            * https://leptos-use.rs/network/use_websocket.html
         * Show connected clients
         * Create Text field
         * Connect text-field to websocket API to query and update the text field with changes
