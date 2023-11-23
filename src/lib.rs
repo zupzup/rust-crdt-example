@@ -2,6 +2,7 @@ use leptos::{ev::SubmitEvent, html::Input, *};
 use serde::{Deserialize, Serialize};
 
 mod textfield;
+mod ws;
 
 pub fn App() -> impl IntoView {
     view! {
