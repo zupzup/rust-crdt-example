@@ -13,8 +13,6 @@ Example for a real-time, collaborative web app using CRDTs in Rust
             * https://leptos-use.rs/network/use_websocket.html
         * Show connected clients
         * Create Text field
-            * use div with contentEditable
-            * use overflow:auto and fixed width/height for scrolling
             * submit var text = $('.editable').html();
         * Connect text-field to websocket API to query and update the text field with changes
         * Implement CRDT logic on the client
