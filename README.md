@@ -18,8 +18,7 @@ Example for a real-time, collaborative web app using CRDTs in Rust
         * Implement CRDT logic on the client
         * use Leptosfmt https://github.com/bram209/leptosfmt with rust analyzer
     * Backend
-        * Create Axum Webserver
-        * Add Websockets endpoint
+        * Create Websocket server 
         * Add list of connected clients and way to query that
         * Add in-memory state on the server for the text field
         * Implement basic communication on websocket, for clients to manipulate the text field state
