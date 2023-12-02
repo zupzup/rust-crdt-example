@@ -1,14 +1,55 @@
 use leptos::{ev::SubmitEvent, html::Input, *};
-use serde::{Deserialize, Serialize};
+use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+// use serde::{Deserialize, Serialize};
 
 mod textfield;
 mod ws;
 
 pub fn App() -> impl IntoView {
+    let UseWebsocketReturn {
+        ready_state,
+        message,
+        message_bytes,
+        send,
+        send_bytes,
+        open,
+        close,
+        ..
+    } = use_websocket("ws://localhost:3000/");
+
+    let send_message = move |_| {
+        send("Hello, world!");
+    };
+
+    let send_byte_message = move |_| {
+        send_bytes(b"Hello, world!\r\n".to_vec());
+    };
+
+    let status = move || ready_state.get().to_string();
+
+    let connected = move || ready_state.get() == ConnectionReadyState::Open;
+
+    let open_connection = move |_| {
+        open();
+    };
+
+    let close_connection = move |_| {
+        close();
+    };
+
     view! {
         <div class="app">
+            <p>status: {status}</p>
+
+            <button on:click=send_message disabled=move || !connected()>"Send"</button>
+            <button on:click=send_byte_message disabled=move || !connected()>"Send bytes"</button>
+            <button on:click=open_connection disabled=connected>"Open"</button>
+            <button on:click=close_connection disabled=move || !connected()>"Close"</button>
+
+            <p>"Receive message: " {move || format!("{:?}", message.get())}</p>
+            <p>"Receive byte message: " {move || format!("{:?}", message_bytes.get())}</p>
             <textfield::TextField />
-        </div>
+            </div>
     }
 }
 

@@ -2,6 +2,7 @@
 # will have compiled files and executables
 client/debug/
 client/target/
+client/dist/
 server/debug/
 server/target/
 

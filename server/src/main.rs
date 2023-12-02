@@ -35,10 +35,12 @@ async fn accept_connection(stream: TcpStream) {
     info!("New WebSocket connection: {}", addr);
 
     let (write, read) = ws_stream.split();
-
     // We should not forward messages other than text or binary.
-    read.try_filter(|msg| future::ready(msg.is_text() || msg.is_binary()))
-        .forward(write)
-        .await
-        .expect("Failed to forward messages")
+    read.try_filter(|msg| {
+        info!("msg: {}, binary: {}", msg, msg.is_binary());
+        future::ready(msg.is_text() || msg.is_binary())
+    })
+    .forward(write)
+    .await
+    .expect("Failed to forward messages")
 }
