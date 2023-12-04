@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use leptos::*;
 use rust_crdt_example::App;
 

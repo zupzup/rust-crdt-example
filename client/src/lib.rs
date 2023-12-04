@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
 // use serde::{Deserialize, Serialize};
