@@ -1,10 +1,22 @@
 use futures_util::{future, StreamExt, TryStreamExt};
 use log::info;
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::{env, io::Error};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::RwLock;
+
+type Clients = Arc<RwLock<HashMap<String, Client>>>;
+
+#[derive(Debug, Clone)]
+pub struct Client {
+    pub name: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
+
     let _ = env_logger::try_init();
     let addr = env::args()
         .nth(1)
@@ -16,13 +28,13 @@ async fn main() -> Result<(), Error> {
     info!("Listening on: {addr}");
 
     while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(accept_connection(stream));
+        tokio::spawn(accept_connection(stream, clients.clone()));
     }
 
     Ok(())
 }
 
-async fn accept_connection(stream: TcpStream) {
+async fn accept_connection(stream: TcpStream, clients: Clients) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -37,6 +49,9 @@ async fn accept_connection(stream: TcpStream) {
     let (write, read) = ws_stream.split();
     // We should not forward messages other than text or binary.
     read.try_filter(|msg| {
+        // TODO: create two payloads - init and msg
+        // TODO: for init - add new client to the client map
+        // TODO: for msg, handle incoming message (CRDT)
         info!("msg: {msg}, binary: {}", msg.is_binary());
         future::ready(msg.is_text() || msg.is_binary())
     })
