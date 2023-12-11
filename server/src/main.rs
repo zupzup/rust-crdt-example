@@ -6,7 +6,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{env, io::Error};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::RwLock;
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedSender},
+    RwLock,
+};
 use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, Client>>>;
@@ -47,9 +50,20 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-async fn handle_init(ev: &InitEvent) {}
+async fn handle_init(ev: &InitEvent, clients: Clients) {
+    clients.as_ref().write().await.insert(
+        ev.name.to_owned(),
+        Client {
+            name: ev.name.to_owned(),
+        },
+    );
+}
 
-async fn handle_msg(ev: &MsgEvent) {}
+async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
+    clients.read().await.iter().for_each(|client| {
+        let _ = sender.send((client.1.name.to_owned(), ev.text.clone()));
+    })
+}
 
 async fn accept_connection(stream: TcpStream, clients: Clients) {
     let addr = stream
@@ -66,6 +80,8 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
     let (mut sender, mut receiver) = ws_stream.split();
     let mut interval = tokio::time::interval(Duration::from_millis(1000));
 
+    let (tx, mut rx) = unbounded_channel::<(String, String)>();
+
     loop {
         tokio::select! {
             msg = receiver.next() => {
@@ -76,9 +92,9 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                             sender.send(msg.clone()).await.expect("can be sent");
                             let txt = msg.to_text().expect("msg is text");
                             if let Ok(event) = serde_json::from_str::<InitEvent>(txt) {
-                                handle_init(&event).await;
+                                handle_init(&event, clients.clone()).await;
                             } else if let Ok(event) = serde_json::from_str::<MsgEvent>(txt) {
-                                handle_msg(&event).await;
+                                handle_msg(&event, clients.clone(), tx.clone()).await;
                             } else {
                                 warn!("unknown event: {txt}");
                             }
@@ -88,7 +104,12 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                     }
                     None => break,
                 }
-            }
+            },
+            Some(ev) = rx.recv() => {
+                let msg = Message::Text(ev.1.to_owned());
+                sender.send(msg).await.expect(
+                    "sent");
+            },
             _ = interval.tick() => {
                 sender.send(Message::Text("tick".to_owned())).await.expect("can be sent");
             }
