@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,17 +14,17 @@ use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InitEvent {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MsgEvent {
     pub text: String,
 }
@@ -50,17 +50,26 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-async fn handle_init(ev: &InitEvent, clients: Clients) {
+async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
     clients.as_ref().write().await.insert(
         ev.name.to_owned(),
         Client {
             name: ev.name.to_owned(),
         },
     );
+    info!("added {}", ev.name);
+    let cl: HashMap<String, Client> = clients.read().await.clone();
+    let ser_list = serde_json::to_string(&cl).expect("can serialize cleints list");
+    clients.read().await.iter().for_each(|client| {
+        info!("sending client list to {}", client.1.name);
+        let _ = sender.send((client.1.name.to_owned(), ser_list.clone()));
+    });
+    info!("new client list: {:?}", clients);
 }
 
 async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
     clients.read().await.iter().for_each(|client| {
+        info!("sending to {}", client.1.name);
         let _ = sender.send((client.1.name.to_owned(), ev.text.clone()));
     })
 }
@@ -78,7 +87,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
     info!("New WebSocket connection: {addr}");
 
     let (mut sender, mut receiver) = ws_stream.split();
-    let mut interval = tokio::time::interval(Duration::from_millis(1000));
+    let mut interval = tokio::time::interval(Duration::from_millis(60000));
 
     let (tx, mut rx) = unbounded_channel::<(String, String)>();
 
@@ -92,7 +101,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                             sender.send(msg.clone()).await.expect("can be sent");
                             let txt = msg.to_text().expect("msg is text");
                             if let Ok(event) = serde_json::from_str::<InitEvent>(txt) {
-                                handle_init(&event, clients.clone()).await;
+                                handle_init(&event, clients.clone(), tx.clone()).await;
                             } else if let Ok(event) = serde_json::from_str::<MsgEvent>(txt) {
                                 handle_msg(&event, clients.clone(), tx.clone()).await;
                             } else {

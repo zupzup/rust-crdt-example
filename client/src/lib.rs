@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
-use leptos::{ev::SubmitEvent, html::Input, *};
+// use leptos::{ev::SubmitEvent, html::Input, *};
+use leptos::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
 // use serde::{Deserialize, Serialize};
 
@@ -18,8 +19,11 @@ pub fn App() -> impl IntoView {
         ..
     } = use_websocket("ws://localhost:3000/");
 
+    let (count, set_count) = create_signal(0);
+
     let send_message = move |_| {
-        send("Hello, world!");
+        // send("Hello, world!");
+        send(&format!(r#"{{"name": "minka{}"}}"#, count.get()));
     };
 
     let send_byte_message = move |_| {
@@ -46,6 +50,9 @@ pub fn App() -> impl IntoView {
             <button on:click=send_byte_message disabled=move || !connected()>"Send bytes"</button>
             <button on:click=open_connection disabled=connected>"Open"</button>
             <button on:click=close_connection disabled=move || !connected()>"Close"</button>
+            <button on:click=move |_| set_count.update(|n| *n += 1)>
+                {count}
+            </button>
 
             <p>"Receive message: " {move || format!("{:?}", message.get())}</p>
             <p>"Receive byte message: " {move || format!("{:?}", message_bytes.get())}</p>
