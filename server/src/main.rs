@@ -1,6 +1,7 @@
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,6 +14,9 @@ use tokio::sync::{
 use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, Client>>>;
+
+const INIT: &str = "INIT";
+const MSG: &str = "MSG";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
@@ -27,6 +31,12 @@ pub struct InitEvent {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MsgEvent {
     pub text: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Event {
+    t: String,
+    data: Value,
 }
 
 #[tokio::main]
@@ -100,10 +110,22 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                         if msg.is_text() ||msg.is_binary() {
                             sender.send(msg.clone()).await.expect("can be sent");
                             let txt = msg.to_text().expect("msg is text");
-                            if let Ok(event) = serde_json::from_str::<InitEvent>(txt) {
-                                handle_init(&event, clients.clone(), tx.clone()).await;
-                            } else if let Ok(event) = serde_json::from_str::<MsgEvent>(txt) {
-                                handle_msg(&event, clients.clone(), tx.clone()).await;
+                            if let Ok(evt) = serde_json::from_str::<Event>(txt) {
+                                match evt.t.as_str() {
+                                    INIT => {
+                                        if let Ok(event) = serde_json::from_value::<InitEvent>(evt.data) {
+                                            handle_init(&event, clients.clone(), tx.clone()).await;
+                                        }
+                                    },
+                                    MSG => {
+                                        if let Ok(event) = serde_json::from_value::<MsgEvent>(evt.data) {
+                                            handle_msg(&event, clients.clone(), tx.clone()).await;
+                                        }
+                                    }
+                                    event_type => {
+                                        warn!("unknown event: {event_type}");
+                                    }
+                                }
                             } else {
                                 warn!("unknown event: {txt}");
                             }

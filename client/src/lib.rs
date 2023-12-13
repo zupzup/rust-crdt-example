@@ -4,6 +4,7 @@ use leptos::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
 // use serde::{Deserialize, Serialize};
 
+mod connect;
 mod textfield;
 mod ws;
 
@@ -23,7 +24,10 @@ pub fn App() -> impl IntoView {
 
     let send_message = move |_| {
         // send("Hello, world!");
-        send(&format!(r#"{{"name": "minka{}"}}"#, count.get()));
+        send(&format!(
+            r#"{{"t": "INIT", "data": {{ "name": "minka{}" }} }}"#,
+            count.get()
+        ));
     };
 
     let send_byte_message = move |_| {
@@ -56,7 +60,10 @@ pub fn App() -> impl IntoView {
 
             <p>"Receive message: " {move || format!("{:?}", message.get())}</p>
             <p>"Receive byte message: " {move || format!("{:?}", message_bytes.get())}</p>
-            <textfield::TextField />
+            <div class="container">
+                <connect::Connect />
+                <textfield::TextField />
+            </div>
             </div>
     }
 }
