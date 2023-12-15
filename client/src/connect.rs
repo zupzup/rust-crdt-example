@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
-use leptos::{ev::SubmitEvent, html::Input, *};
+// use leptos::{ev::SubmitEvent, html::Input, *};
+use leptos::*;
 
+#[component]
 pub fn Connect() -> impl IntoView {
     view! {
         <div class="connect">

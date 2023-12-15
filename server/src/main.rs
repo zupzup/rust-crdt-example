@@ -17,6 +17,7 @@ type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
 const INIT: &str = "INIT";
 const MSG: &str = "MSG";
+const CLIENT_LIST: &str = "CLIENT_LIST";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
@@ -31,6 +32,11 @@ pub struct InitEvent {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MsgEvent {
     pub text: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ClientListEvent {
+    pub clients: Vec<Client>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -68,11 +74,19 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
         },
     );
     info!("added {}", ev.name);
-    let cl: HashMap<String, Client> = clients.read().await.clone();
-    let ser_list = serde_json::to_string(&cl).expect("can serialize cleints list");
+    let cl = ClientListEvent {
+        clients: clients.read().await.clone().into_values().collect(),
+    };
+    let ser_list = serde_json::to_value(&cl).expect("can serialize cleints list");
+    let clients_list_event = Event {
+        t: CLIENT_LIST.to_string(),
+        data: ser_list,
+    };
+    let serialized =
+        serde_json::to_string(&clients_list_event).expect("can serialize client list event");
     clients.read().await.iter().for_each(|client| {
         info!("sending client list to {}", client.1.name);
-        let _ = sender.send((client.1.name.to_owned(), ser_list.clone()));
+        let _ = sender.send((client.1.name.to_owned(), serialized.clone()));
     });
     info!("new client list: {:?}", clients);
 }
@@ -80,7 +94,16 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
 async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
     clients.read().await.iter().for_each(|client| {
         info!("sending to {}", client.1.name);
-        let _ = sender.send((client.1.name.to_owned(), ev.text.clone()));
+        let client_msg_event = Event {
+            t: MSG.to_string(),
+            data: serde_json::to_value(MsgEvent {
+                text: ev.text.clone(),
+            })
+            .expect("can serialize msg event"),
+        };
+        let serialied =
+            serde_json::to_string(&client_msg_event).expect("can serialized client msg event");
+        let _ = sender.send((client.1.name.to_owned(), serialied.clone()));
     })
 }
 
@@ -130,6 +153,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                                 warn!("unknown event: {txt}");
                             }
                         } else if msg.is_close() {
+                            // TODO: remove client from list
                             break;
                         }
                     }

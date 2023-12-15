@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
-use leptos::{ev::SubmitEvent, html::Input, *};
+// use leptos::{ev::SubmitEvent, html::Input, *};
+use leptos::*;
 
+#[component]
 pub fn TextField() -> impl IntoView {
     view! {
         <div class="text-field-container">
@@ -13,6 +15,7 @@ pub fn TextField() -> impl IntoView {
     }
 }
 
+#[component]
 fn Header() -> impl IntoView {
     view! {
         <div class="text-field-header">
