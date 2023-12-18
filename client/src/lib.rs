@@ -76,13 +76,12 @@ pub fn App() -> impl IntoView {
         vec![]
     });
 
-    let send_message = move |_| {
-        // send("Hello, world!");
-        send(&format!(
-            r#"{{"t": "INIT", "data": {{ "name": "minka{}" }} }}"#,
-            count.get()
-        ));
-    };
+    // let send_message = move |_| {
+    //     send(&format!(
+    //         r#"{{"t": "INIT", "data": {{ "name": "minka{}" }} }}"#,
+    //         count.get()
+    //     ));
+    // };
 
     let send_byte_message = move |_| {
         send_bytes(b"Hello, world!\r\n".to_vec());
@@ -104,7 +103,6 @@ pub fn App() -> impl IntoView {
         <div class="app">
             <p>status: {status}</p>
 
-            <button on:click=send_message disabled=move || !connected()>"Send"</button>
             <button on:click=send_byte_message disabled=move || !connected()>"Send bytes"</button>
             <button on:click=open_connection disabled=connected>"Open"</button>
             <button on:click=close_connection disabled=move || !connected()>"Close"</button>
@@ -115,7 +113,7 @@ pub fn App() -> impl IntoView {
             <p>"Receive message: " {move || format!("{:?}", message.get())}</p>
             <p>"Receive byte message: " {move || format!("{:?}", message_bytes.get())}</p>
             <div class="container">
-                <connect::Connect />
+                <connect::Connect send=send />
                 <clients::Clients clients={clients}/>
                 <textfield::TextField />
             </div>
