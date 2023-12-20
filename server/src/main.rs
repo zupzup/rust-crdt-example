@@ -18,7 +18,7 @@ type Clients = Arc<RwLock<HashMap<String, Client>>>;
 const INIT: &str = "INIT";
 const MSG: &str = "MSG";
 const CLIENT_LIST: &str = "CLIENT_LIST";
-
+//TODO: use https://docs.rs/automerge/0.5.5/automerge/
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
