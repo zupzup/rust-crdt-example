@@ -1,15 +1,12 @@
 #![allow(non_snake_case)]
-// use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos::*;
-use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+use leptos_use::{use_websocket, UseWebsocketReturn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-// use serde::{Deserialize, Serialize};
 
 mod clients;
 mod connect;
 mod textfield;
-mod ws;
 
 // TODO: create common package
 const INIT: &str = "INIT";
@@ -40,21 +37,13 @@ pub struct Event {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let UseWebsocketReturn {
-        ready_state,
-        message,
-        message_bytes,
-        send,
-        send_bytes,
-        open,
-        close,
-        ..
-    } = use_websocket("ws://localhost:3000/");
+    let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
+    let (clients, set_clients) = create_signal(vec![]);
 
-    let (count, set_count) = create_signal(0);
-    let clients = Signal::derive(move || {
-        if let Some(msg) = message.get() {
-            // logging::log!("in derived signal: {msg}");
+    create_effect(move |_| {
+        let m = message.get();
+        if let Some(msg) = m.clone() {
+            logging::log!("in derived signal, msg: {msg}");
             if let Ok(evt) = serde_json::from_str::<Event>(&msg) {
                 logging::log!("in derived signal parsed: {:?}", evt);
                 if evt.t == CLIENT_LIST {
@@ -64,60 +53,28 @@ pub fn App() -> impl IntoView {
                     logging::log!("in derived signal client list: {}", evt.t);
                     if let Ok(cl) = serde_json::from_value::<ClientListEvent>(evt.data) {
                         logging::log!("in derived signal list list: {:?}", cl);
-                        return cl
-                            .clients
-                            .into_iter()
-                            .map(|c| c.name)
-                            .collect::<Vec<String>>();
+                        set_clients.update(|c| {
+                            *c = cl
+                                .clients
+                                .into_iter()
+                                .map(|c| c.name)
+                                .collect::<Vec<String>>()
+                        });
                     }
                 }
             }
         }
-        vec![]
+        m
     });
-
-    // let send_message = move |_| {
-    //     send(&format!(
-    //         r#"{{"t": "INIT", "data": {{ "name": "minka{}" }} }}"#,
-    //         count.get()
-    //     ));
-    // };
-
-    let send_byte_message = move |_| {
-        send_bytes(b"Hello, world!\r\n".to_vec());
-    };
-
-    let status = move || ready_state.get().to_string();
-
-    let connected = move || ready_state.get() == ConnectionReadyState::Open;
-
-    let open_connection = move |_| {
-        open();
-    };
-
-    let close_connection = move |_| {
-        close();
-    };
 
     view! {
         <div class="app">
-            <p>status: {status}</p>
-
-            <button on:click=send_byte_message disabled=move || !connected()>"Send bytes"</button>
-            <button on:click=open_connection disabled=connected>"Open"</button>
-            <button on:click=close_connection disabled=move || !connected()>"Close"</button>
-            <button on:click=move |_| set_count.update(|n| *n += 1)>
-                {count}
-            </button>
-
-            <p>"Receive message: " {move || format!("{:?}", message.get())}</p>
-            <p>"Receive byte message: " {move || format!("{:?}", message_bytes.get())}</p>
             <div class="container">
                 <connect::Connect send=send />
                 <clients::Clients clients={clients}/>
                 <textfield::TextField />
             </div>
-            </div>
+        </div>
     }
 }
 

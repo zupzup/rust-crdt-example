@@ -13,11 +13,18 @@ use tokio::sync::{
 };
 use tokio_tungstenite::tungstenite::Message;
 
-type Clients = Arc<RwLock<HashMap<String, Client>>>;
+type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
 
 const INIT: &str = "INIT";
 const MSG: &str = "MSG";
 const CLIENT_LIST: &str = "CLIENT_LIST";
+
+#[derive(Debug, Clone)]
+pub struct WsClient {
+    pub name: String,
+    pub sender: UnboundedSender<(String, String)>,
+}
+
 //TODO: use https://docs.rs/automerge/0.5.5/automerge/
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
@@ -69,13 +76,20 @@ async fn main() -> Result<(), Error> {
 async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
     clients.as_ref().write().await.insert(
         ev.name.to_owned(),
-        Client {
+        WsClient {
             name: ev.name.to_owned(),
+            sender: sender.clone(),
         },
     );
     info!("added {}", ev.name);
     let cl = ClientListEvent {
-        clients: clients.read().await.clone().into_values().collect(),
+        clients: clients
+            .read()
+            .await
+            .clone()
+            .into_values()
+            .map(|c| Client { name: c.name })
+            .collect(),
     };
     let ser_list = serde_json::to_value(&cl).expect("can serialize cleints list");
     let clients_list_event = Event {
@@ -86,7 +100,10 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
         serde_json::to_string(&clients_list_event).expect("can serialize client list event");
     clients.read().await.iter().for_each(|client| {
         info!("sending client list to {}", client.1.name);
-        let _ = sender.send((client.1.name.to_owned(), serialized.clone()));
+        let _ = client
+            .1
+            .sender
+            .send((client.1.name.to_owned(), serialized.clone()));
     });
     info!("new client list: {:?}", clients);
 }
@@ -101,9 +118,9 @@ async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(St
             })
             .expect("can serialize msg event"),
         };
-        let serialied =
+        let serialized =
             serde_json::to_string(&client_msg_event).expect("can serialized client msg event");
-        let _ = sender.send((client.1.name.to_owned(), serialied.clone()));
+        let _ = sender.send((client.1.name.to_owned(), serialized.clone()));
     })
 }
 
@@ -120,7 +137,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
     info!("New WebSocket connection: {addr}");
 
     let (mut sender, mut receiver) = ws_stream.split();
-    let mut interval = tokio::time::interval(Duration::from_millis(60000));
+    let mut interval = tokio::time::interval(Duration::from_millis(5000));
 
     let (tx, mut rx) = unbounded_channel::<(String, String)>();
 
@@ -131,7 +148,6 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                     Some(msg) => {
                         let msg = msg.expect("msg is there");
                         if msg.is_text() ||msg.is_binary() {
-                            sender.send(msg.clone()).await.expect("can be sent");
                             let txt = msg.to_text().expect("msg is text");
                             if let Ok(evt) = serde_json::from_str::<Event>(txt) {
                                 match evt.t.as_str() {
@@ -153,7 +169,6 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                                 warn!("unknown event: {txt}");
                             }
                         } else if msg.is_close() {
-                            // TODO: remove client from list
                             break;
                         }
                     }
@@ -162,8 +177,9 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
             },
             Some(ev) = rx.recv() => {
                 let msg = Message::Text(ev.1.to_owned());
+                info!("sending msg: {} for addr {addr}", msg.clone());
                 sender.send(msg).await.expect(
-                    "sent");
+                    "msg was sent");
             },
             _ = interval.tick() => {
                 sender.send(Message::Text("tick".to_owned())).await.expect("can be sent");

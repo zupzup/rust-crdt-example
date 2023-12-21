@@ -2,7 +2,7 @@
 use leptos::*;
 
 #[component]
-pub fn Clients(clients: Signal<Vec<String>>) -> impl IntoView {
+pub fn Clients(clients: ReadSignal<Vec<String>>) -> impl IntoView {
     view! {
         <div class="clients">
             <span>Clients</span>
