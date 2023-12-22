@@ -62,7 +62,7 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
             .map(|c| Client { name: c.name })
             .collect(),
     };
-    let ser_list = serde_json::to_value(&cl).expect("can serialize cleints list");
+    let ser_list = serde_json::to_value(&cl).expect("can serialize clients list");
     let clients_list_event = Event {
         t: CLIENT_LIST.to_string(),
         data: ser_list,
@@ -79,7 +79,7 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
     info!("new client list: {:?}", clients);
 }
 
-async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
+async fn handle_msg(ev: &MsgEvent, clients: Clients) {
     clients.read().await.iter().for_each(|client| {
         info!("sending to {}", client.1.name);
         let client_msg_event = Event {
@@ -91,7 +91,10 @@ async fn handle_msg(ev: &MsgEvent, clients: Clients, sender: UnboundedSender<(St
         };
         let serialized =
             serde_json::to_string(&client_msg_event).expect("can serialized client msg event");
-        let _ = sender.send((client.1.name.to_owned(), serialized.clone()));
+        let _ = client
+            .1
+            .sender
+            .send((client.1.name.to_owned(), serialized.clone()));
     })
 }
 
@@ -129,7 +132,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                                     },
                                     MSG => {
                                         if let Ok(event) = serde_json::from_value::<MsgEvent>(evt.data) {
-                                            handle_msg(&event, clients.clone(), tx.clone()).await;
+                                            handle_msg(&event, clients.clone()).await;
                                         }
                                     }
                                     event_type => {

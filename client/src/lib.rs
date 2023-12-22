@@ -12,6 +12,8 @@ pub fn App() -> impl IntoView {
     let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
     let (clients, set_clients) = create_signal(vec![]);
 
+    // TODO: implement MSG_EVENT
+
     create_effect(move |_| {
         let m = message.get();
         if let Some(msg) = m.clone() {
