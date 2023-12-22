@@ -1,39 +1,11 @@
 #![allow(non_snake_case)]
+use common::{ClientListEvent, Event, CLIENT_LIST};
 use leptos::*;
 use leptos_use::{use_websocket, UseWebsocketReturn};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 mod clients;
 mod connect;
 mod textfield;
-
-// TODO: create common package
-const INIT: &str = "INIT";
-const MSG: &str = "MSG";
-const CLIENT_LIST: &str = "CLIENT_LIST";
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct MsgEvent {
-    pub text: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ClientListEvent {
-    pub clients: Vec<Client>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Client {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Event {
-    t: String,
-    data: Value,
-}
-// TODO: create common package
 
 #[component]
 pub fn App() -> impl IntoView {

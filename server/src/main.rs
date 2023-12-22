@@ -1,7 +1,6 @@
+use common::{Client, ClientListEvent, Event, InitEvent, MsgEvent, CLIENT_LIST, INIT, MSG};
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,10 +14,6 @@ use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
 
-const INIT: &str = "INIT";
-const MSG: &str = "MSG";
-const CLIENT_LIST: &str = "CLIENT_LIST";
-
 #[derive(Debug, Clone)]
 pub struct WsClient {
     pub name: String,
@@ -26,31 +21,7 @@ pub struct WsClient {
 }
 
 //TODO: use https://docs.rs/automerge/0.5.5/automerge/
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Client {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct InitEvent {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct MsgEvent {
-    pub text: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ClientListEvent {
-    pub clients: Vec<Client>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Event {
-    t: String,
-    data: Value,
-}
+//TODO: try to use https://docs.rs/autosurgeon/latest/autosurgeon/struct.Text.html
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
