@@ -20,9 +20,6 @@ pub struct WsClient {
     pub sender: UnboundedSender<(String, String)>,
 }
 
-//TODO: use https://docs.rs/automerge/0.5.5/automerge/
-//TODO: try to use https://docs.rs/autosurgeon/latest/autosurgeon/struct.Text.html
-
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));

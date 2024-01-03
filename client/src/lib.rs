@@ -5,17 +5,44 @@ use leptos_use::{use_websocket, UseWebsocketReturn};
 
 mod clients;
 mod connect;
-mod textfield;
+mod grid;
 
 #[component]
 pub fn App() -> impl IntoView {
     let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
     let (clients, set_clients) = create_signal(vec![]);
+    let (data, set_data) = create_signal(vec![
+        (
+            0,
+            vec![
+                (0, String::from("Col 00")),
+                (1, String::from("Col 01")),
+                (2, String::from("Col 02")),
+            ],
+        ),
+        (
+            1,
+            vec![
+                (0, String::from("Col 10")),
+                (1, String::from("Col 11")),
+                (2, String::from("Col 12")),
+            ],
+        ),
+        (
+            2,
+            vec![
+                (0, String::from("Col 20")),
+                (1, String::from("Col 21")),
+                (2, String::from("Col 22")),
+            ],
+        ),
+    ]);
 
     // TODO: implement MSG_EVENT
 
     create_effect(move |_| {
         let m = message.get();
+
         if let Some(msg) = m.clone() {
             logging::log!("in derived signal, msg: {msg}");
             if let Ok(evt) = serde_json::from_str::<Event>(&msg) {
@@ -46,7 +73,7 @@ pub fn App() -> impl IntoView {
             <div class="container">
                 <connect::Connect send=send />
                 <clients::Clients clients={clients}/>
-                <textfield::TextField />
+                <grid::Grid data={data} set_data={set_data}/>
             </div>
         </div>
     }

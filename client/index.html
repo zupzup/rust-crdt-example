@@ -13,7 +13,7 @@
       }
 
       .connect {
-          width: 1200px;
+          width: 800;
           height: 40px;
           border: 1px solid lightgrey;
           padding: 10px;
@@ -29,7 +29,7 @@
 
       .clients {
           margin-top: 5px;
-          width: 1200px;
+          width: 800;
           border: 1px solid lightgrey;
           padding: 10px;
       }
@@ -42,24 +42,36 @@
           margin-top: 5px;
       }
 
-      .text-field {
+      .grid {
           margin-top: 5px;
           padding: 10px;
-          overflow: auto;
-          width: 1200px;
+          width: 800;
           height: 600px;
           border: 1px solid lightgrey;
       }
 
-      .text-field-header {
+      .grid .row {
+          padding: 2px;
+          margin: 2px;
+      }
+
+      .grid .row input {
+          padding: 10px;
+          margin: 5px;
+          border: 1px solid lightgrey;
+          width: 200px;
+          height: 20px;
+      }
+
+      .grid-header {
           margin-top: 5px;
           padding: 10px;
-          width: 1200px;
+          width: 800;
           height: 40px;
           border: 1px solid lightgrey;
       }
 
-      .text-field-header .btn {
+      .grid-header .btn {
           user-select: none;
           display: inline-block;
           text-align: center;
@@ -70,11 +82,11 @@
           cursor: pointer;
       }
 
-      .text-field-header .btn:hover {
+      .grid-header .btn:hover {
           background-color: lightgrey;
       }
 
-      .text-field-header .btn:active {
+      .grid-header .btn:active {
           background-color: darkgrey;
       }
     </style>

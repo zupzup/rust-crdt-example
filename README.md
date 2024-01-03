@@ -11,9 +11,7 @@ Example for a real-time, collaborative web app using CRDTs in Rust
         * Connect text-field to websocket API to query and update the text field with changes
         * Implement CRDT logic on the client
     * Backend
-        * Add in-memory state on the server for the text field
-        * Implement basic communication on websocket, for clients to manipulate the text field state
-        * Implement CRDT logic on server
+        * Implement CRDT logic on server - LWWValue in a 3x3 Vec, or a LWWVec
 
 ## Setup
 
