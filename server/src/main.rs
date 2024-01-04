@@ -1,4 +1,7 @@
-use common::{Client, ClientListEvent, Event, InitEvent, MsgEvent, CLIENT_LIST, INIT, MSG};
+use common::{
+    ChangeEvent, Client, ClientListEvent, Column, Event, InitEvent, MsgEvent, Row, CHANGE,
+    CLIENT_LIST, INIT, MSG,
+};
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
 use std::collections::HashMap;
@@ -14,6 +17,8 @@ use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
 
+type Data = Arc<RwLock<Vec<Row>>>;
+
 #[derive(Debug, Clone)]
 pub struct WsClient {
     pub name: String,
@@ -23,6 +28,60 @@ pub struct WsClient {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
+    // TODO: init_data method
+    let data = Arc::new(RwLock::new(vec![
+        Row {
+            idx: 0,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 1,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 2,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+    ]));
 
     let _ = env_logger::try_init();
     let addr = env::args()
@@ -35,7 +94,7 @@ async fn main() -> Result<(), Error> {
     info!("Listening on: {addr}");
 
     while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(accept_connection(stream, clients.clone()));
+        tokio::spawn(accept_connection(stream, clients.clone(), data.clone()));
     }
 
     Ok(())
@@ -72,17 +131,24 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
             .1
             .sender
             .send((client.1.name.to_owned(), serialized.clone()));
+        // TODO: send new clients the current Data as well
     });
     info!("new client list: {:?}", clients);
 }
 
-async fn handle_msg(ev: &MsgEvent, clients: Clients) {
+async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
+    info!("handling change {:?}", ev);
+    // change the data
+    data.write().await[ev.row].columns[ev.column].value = ev.value.clone();
+
+    let updated = data.read_owned().await;
+
     clients.read().await.iter().for_each(|client| {
         info!("sending to {}", client.1.name);
         let client_msg_event = Event {
             t: MSG.to_string(),
             data: serde_json::to_value(MsgEvent {
-                data: ev.data.clone(),
+                data: updated.clone(),
             })
             .expect("can serialize msg event"),
         };
@@ -95,7 +161,7 @@ async fn handle_msg(ev: &MsgEvent, clients: Clients) {
     })
 }
 
-async fn accept_connection(stream: TcpStream, clients: Clients) {
+async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -118,7 +184,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                 match msg {
                     Some(msg) => {
                         let msg = msg.expect("msg is there");
-                        if msg.is_text() ||msg.is_binary() {
+                        if msg.is_text() {
                             let txt = msg.to_text().expect("msg is text");
                             if let Ok(evt) = serde_json::from_str::<Event>(txt) {
                                 match evt.t.as_str() {
@@ -127,9 +193,9 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                                             handle_init(&event, clients.clone(), tx.clone()).await;
                                         }
                                     },
-                                    MSG => {
-                                        if let Ok(event) = serde_json::from_value::<MsgEvent>(evt.data) {
-                                            handle_msg(&event, clients.clone()).await;
+                                    CHANGE => {
+                                        if let Ok(event) = serde_json::from_value::<ChangeEvent>(evt.data) {
+                                            handle_change(&event, clients.clone(), data.clone()).await;
                                         }
                                     }
                                     event_type => {
@@ -157,33 +223,4 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
             }
         }
     }
-
-    // read.try_filter(|msg| {
-    //     msg.to_text().and_then(|txt: &str| {
-    //         if let Ok(event) = serde_json::from_str::<InitEvent>(txt) {
-    //             handle_init(&event).await;
-    //         } else if let Ok(event) = serde_json::from_str::<MsgEvent>(txt) {
-    //             handle_init(&event).await;
-    //         } else {
-    //             warn!("unknown event: {txt}");
-    //         }
-    //     });
-    // match serde_json::from_str(msg.to_text()) {
-    //     Ok(init: InitEvent) => {
-    // // TODO: for init - add new client to the client map
-    //     }
-    //     Ok(init: MsgEvent) => {
-    // // TODO: for msg, handle incoming message (CRDT)
-    //     }
-    //     _ => {
-    //         warn!("unknown event: {msg}");
-    //     }
-    // }
-    // TODO: create two payloads - init and msg
-    // info!("msg: {msg}, binary: {}", msg.is_binary());
-    // future::ready(msg.is_text() || msg.is_binary())
-    // })
-    // .forward(write)
-    // .await
-    // .expect("Failed to forward messages")
 }
