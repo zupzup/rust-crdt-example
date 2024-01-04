@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use common::{ClientListEvent, Event, CLIENT_LIST};
+use common::{ClientListEvent, Column, Event, Row, CLIENT_LIST};
 use leptos::*;
 use leptos_use::{use_websocket, UseWebsocketReturn};
 
@@ -12,30 +12,57 @@ pub fn App() -> impl IntoView {
     let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
     let (clients, set_clients) = create_signal(vec![]);
     let (data, set_data) = create_signal(vec![
-        (
-            0,
-            vec![
-                (0, String::from("")),
-                (1, String::from("")),
-                (2, String::from("")),
+        Row {
+            idx: 0,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
             ],
-        ),
-        (
-            1,
-            vec![
-                (0, String::from("")),
-                (1, String::from("")),
-                (2, String::from("")),
+        },
+        Row {
+            idx: 1,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
             ],
-        ),
-        (
-            2,
-            vec![
-                (0, String::from("")),
-                (1, String::from("")),
-                (2, String::from("")),
+        },
+        Row {
+            idx: 2,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
             ],
-        ),
+        },
     ]);
 
     // TODO: implement MSG_EVENT

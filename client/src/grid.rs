@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
+use common::Row;
 use leptos::*;
 
-type RowCol = Vec<(usize, Vec<(usize, String)>)>;
-
 #[component]
-pub fn Grid(data: ReadSignal<RowCol>, set_data: WriteSignal<RowCol>) -> impl IntoView {
+pub fn Grid(data: ReadSignal<Vec<Row>>, set_data: WriteSignal<Vec<Row>>) -> impl IntoView {
     let (changed, set_changed) = create_signal(String::from("nothing changed"));
 
     view! {
@@ -12,26 +11,23 @@ pub fn Grid(data: ReadSignal<RowCol>, set_data: WriteSignal<RowCol>) -> impl Int
             <div class="grid">
                 <div>"Changed: " {move || changed.get()}</div>
                 <For each=move || data.get()
-                 key=|r| r.0
+                 key=|r| r.idx
                  children=move |row| view! {
                      <div class="row">
-                         <For each=move || row.1.clone()
-                              key=|c| c.0
+                         <For each=move || row.columns.clone()
+                              key=|c| c.idx
                               children=move |col| view! {
                                   <input type="text" on:input=move |ev| {
                                       let val = event_target_value(&ev);
                                       logging::log!("ev: {:?}", ev);
                                       logging::log!("val: {val}");
-                                      set_changed.update(|v| *v = format!("{} {} changed to {val}", row.0, col.0));
-                                      set_data.update(|d| d[row.0].1[col.0].1 = val);
+                                      set_changed.update(|v| *v = format!("{} {} changed to {val}", row.idx, col.idx));
+                                      set_data.update(|d| d[row.idx].columns[col.idx].value = val);
                                   }
-                                  prop:value={col.1} />
+                                  prop:value={col.value} />
                               }/>
                      </div>
                 }/>
-            </div>
-            <div>
-                {move || data.get()}
             </div>
         </div>
     }

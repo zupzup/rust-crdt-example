@@ -17,7 +17,19 @@ pub struct InitEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MsgEvent {
-    pub text: String,
+    pub data: Vec<Row>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Row {
+    pub idx: usize,
+    pub columns: Vec<Column>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Column {
+    pub idx: usize,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
