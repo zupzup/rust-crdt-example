@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const INIT: &str = "INIT";
-pub const MSG: &str = "MSG";
+pub const GRID: &str = "GRID";
 pub const CHANGE: &str = "CHANGE";
 pub const CLIENT_LIST: &str = "CLIENT_LIST";
 
@@ -24,7 +24,7 @@ pub struct ChangeEvent {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct MsgEvent {
+pub struct GridEvent {
     pub data: Vec<Row>,
 }
 

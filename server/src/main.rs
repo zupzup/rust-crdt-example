@@ -1,6 +1,6 @@
 use common::{
-    ChangeEvent, Client, ClientListEvent, Column, Event, InitEvent, MsgEvent, Row, CHANGE,
-    CLIENT_LIST, INIT, MSG,
+    ChangeEvent, Client, ClientListEvent, Column, Event, GridEvent, InitEvent, Row, CHANGE,
+    CLIENT_LIST, GRID, INIT,
 };
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
@@ -117,8 +117,8 @@ async fn handle_init(
     info!("added {}", ev.name);
 
     let serialized_data = serde_json::to_string(&Event {
-        t: MSG.to_string(),
-        data: serde_json::to_value(MsgEvent {
+        t: GRID.to_string(),
+        data: serde_json::to_value(GridEvent {
             data: data.read().await.clone(),
         })
         .expect("can serialize data"),
@@ -163,14 +163,14 @@ async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
     clients.read().await.iter().for_each(|client| {
         info!("sending to {}", client.1.name);
         let client_msg_event = Event {
-            t: MSG.to_string(),
-            data: serde_json::to_value(MsgEvent {
+            t: GRID.to_string(),
+            data: serde_json::to_value(GridEvent {
                 data: updated.clone(),
             })
-            .expect("can serialize msg event"),
+            .expect("can serialize GRID event"),
         };
         let serialized =
-            serde_json::to_string(&client_msg_event).expect("can serialized client msg event");
+            serde_json::to_string(&client_msg_event).expect("can serialized client GRID event");
         let _ = client
             .1
             .sender

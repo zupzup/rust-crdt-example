@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use common::{
-    ChangeEvent, ClientListEvent, Column, Event, MsgEvent, Row, CHANGE, CLIENT_LIST, MSG,
+    ChangeEvent, ClientListEvent, Column, Event, GridEvent, Row, CHANGE, CLIENT_LIST, GRID,
 };
 use leptos::*;
 use leptos_use::{use_websocket, UseWebsocketReturn};
@@ -106,13 +106,13 @@ pub fn App() -> impl IntoView {
                                 .collect::<Vec<String>>()
                         });
                     }
-                } else if evt.t == MSG {
-                    if let Err(e) = serde_json::from_value::<MsgEvent>(evt.data.clone()) {
+                } else if evt.t == GRID {
+                    if let Err(e) = serde_json::from_value::<GridEvent>(evt.data.clone()) {
                         logging::log!("err: {e}");
                     }
-                    logging::log!("in derived signal msg: {}", evt.t);
-                    if let Ok(m) = serde_json::from_value::<MsgEvent>(evt.data) {
-                        logging::log!("in derived signal msg: {:?}", m);
+                    logging::log!("in derived signal GRID: {}", evt.t);
+                    if let Ok(m) = serde_json::from_value::<GridEvent>(evt.data) {
+                        logging::log!("in derived signal GRID: {:?}", m);
                         set_data.update(|d| *d = m.data);
                         logging::log!("data updated!");
                     }
