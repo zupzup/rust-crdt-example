@@ -100,7 +100,12 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(String, String)>) {
+async fn handle_init(
+    ev: &InitEvent,
+    clients: Clients,
+    data: Data,
+    sender: UnboundedSender<(String, String)>,
+) {
     clients.as_ref().write().await.insert(
         ev.name.to_owned(),
         WsClient {
@@ -108,32 +113,44 @@ async fn handle_init(ev: &InitEvent, clients: Clients, sender: UnboundedSender<(
             sender: sender.clone(),
         },
     );
+
     info!("added {}", ev.name);
-    let cl = ClientListEvent {
-        clients: clients
-            .read()
-            .await
-            .clone()
-            .into_values()
-            .map(|c| Client { name: c.name })
-            .collect(),
-    };
-    let ser_list = serde_json::to_value(&cl).expect("can serialize clients list");
-    let clients_list_event = Event {
+
+    let serialized_data = serde_json::to_string(&Event {
+        t: MSG.to_string(),
+        data: serde_json::to_value(MsgEvent {
+            data: data.read().await.clone(),
+        })
+        .expect("can serialize data"),
+    })
+    .expect("can serialize data event");
+
+    let serialized = serde_json::to_string(&Event {
         t: CLIENT_LIST.to_string(),
-        data: ser_list,
-    };
-    let serialized =
-        serde_json::to_string(&clients_list_event).expect("can serialize client list event");
+        data: serde_json::to_value(ClientListEvent {
+            clients: clients
+                .read()
+                .await
+                .clone()
+                .into_values()
+                .map(|c| Client { name: c.name })
+                .collect(),
+        })
+        .expect("can serialize clients list"),
+    })
+    .expect("can serialize client list event");
     clients.read().await.iter().for_each(|client| {
         info!("sending client list to {}", client.1.name);
         let _ = client
             .1
             .sender
             .send((client.1.name.to_owned(), serialized.clone()));
-        // TODO: send new clients the current Data as well
+        let _ = client
+            .1
+            .sender
+            .send((client.1.name.to_owned(), serialized_data.clone()));
     });
-    info!("new client list: {:?}", clients);
+    // info!("new client list: {:?}", clients);
 }
 
 async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
@@ -190,7 +207,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                 match evt.t.as_str() {
                                     INIT => {
                                         if let Ok(event) = serde_json::from_value::<InitEvent>(evt.data) {
-                                            handle_init(&event, clients.clone(), tx.clone()).await;
+                                            handle_init(&event, clients.clone(), data.clone(), tx.clone()).await;
                                         }
                                     },
                                     CHANGE => {
