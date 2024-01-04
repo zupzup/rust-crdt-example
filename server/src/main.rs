@@ -82,7 +82,7 @@ async fn handle_msg(ev: &MsgEvent, clients: Clients) {
         let client_msg_event = Event {
             t: MSG.to_string(),
             data: serde_json::to_value(MsgEvent {
-                text: ev.text.clone(),
+                data: ev.data.clone(),
             })
             .expect("can serialize msg event"),
         };
