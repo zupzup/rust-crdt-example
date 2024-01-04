@@ -15,25 +15,25 @@ pub fn App() -> impl IntoView {
         (
             0,
             vec![
-                (0, String::from("Col 00")),
-                (1, String::from("Col 01")),
-                (2, String::from("Col 02")),
+                (0, String::from("")),
+                (1, String::from("")),
+                (2, String::from("")),
             ],
         ),
         (
             1,
             vec![
-                (0, String::from("Col 10")),
-                (1, String::from("Col 11")),
-                (2, String::from("Col 12")),
+                (0, String::from("")),
+                (1, String::from("")),
+                (2, String::from("")),
             ],
         ),
         (
             2,
             vec![
-                (0, String::from("Col 20")),
-                (1, String::from("Col 21")),
-                (2, String::from("Col 22")),
+                (0, String::from("")),
+                (1, String::from("")),
+                (2, String::from("")),
             ],
         ),
     ]);
