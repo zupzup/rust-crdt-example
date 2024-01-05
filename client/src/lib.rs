@@ -68,13 +68,9 @@ pub fn App() -> impl IntoView {
         },
     ]);
 
-    // TODO: implement MSG_EVENT
-
     let cloned_send = send.clone();
     create_effect(move |_| {
         let change = data_change.get();
-        logging::log!("in derived data signal, data: {:?}", change);
-
         let change_event = serde_json::to_value(change).expect("can serialize change event");
         let serialized = serde_json::to_string(&Event {
             t: CHANGE.to_owned(),
@@ -88,16 +84,9 @@ pub fn App() -> impl IntoView {
         let m = message.get();
 
         if let Some(msg) = m.clone() {
-            logging::log!("in derived signal, msg: {msg}");
             if let Ok(evt) = serde_json::from_str::<Event>(&msg) {
-                logging::log!("in derived signal parsed: {:?}", evt);
                 if evt.t == CLIENT_LIST {
-                    // if let Err(e) = serde_json::from_value::<ClientListEvent>(evt.data) {
-                    //     logging::log!("err: {e}");
-                    // }
-                    logging::log!("in derived signal client list: {}", evt.t);
                     if let Ok(cl) = serde_json::from_value::<ClientListEvent>(evt.data) {
-                        logging::log!("in derived signal list list: {:?}", cl);
                         set_clients.update(|c| {
                             *c = cl
                                 .clients
@@ -107,14 +96,8 @@ pub fn App() -> impl IntoView {
                         });
                     }
                 } else if evt.t == GRID {
-                    if let Err(e) = serde_json::from_value::<GridEvent>(evt.data.clone()) {
-                        logging::log!("err: {e}");
-                    }
-                    logging::log!("in derived signal GRID: {}", evt.t);
                     if let Ok(m) = serde_json::from_value::<GridEvent>(evt.data) {
-                        logging::log!("in derived signal GRID: {:?}", m);
                         set_data.update(|d| *d = m.data);
-                        logging::log!("data updated!");
                     }
                 }
             }

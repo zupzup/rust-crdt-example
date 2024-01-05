@@ -7,7 +7,6 @@ where
     F: Fn(&str) + Clone + 'static,
 {
     let (connected, set_connected) = create_signal(false);
-
     let name_input: NodeRef<Input> = create_node_ref();
 
     let submit_handler = move |ev: SubmitEvent| {
@@ -20,6 +19,7 @@ where
         ));
         set_connected.update(|c| *c = true);
     };
+
     view! {
         <div class="connect">
             <div class="connect-name">

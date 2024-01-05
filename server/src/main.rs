@@ -28,8 +28,25 @@ pub struct WsClient {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
-    // TODO: init_data method
-    let data = Arc::new(RwLock::new(vec![
+    let data = init_data();
+    let _ = env_logger::try_init();
+    let addr = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "127.0.0.1:3000".to_string());
+
+    let try_socket = TcpListener::bind(&addr).await;
+    let listener = try_socket.expect("ws socket failed");
+    info!("WS Listening on: {addr}");
+
+    while let Ok((stream, _)) = listener.accept().await {
+        tokio::spawn(accept_connection(stream, clients.clone(), data.clone()));
+    }
+
+    Ok(())
+}
+
+fn init_data() -> Data {
+    Arc::new(RwLock::new(vec![
         Row {
             idx: 0,
             columns: vec![
@@ -81,23 +98,7 @@ async fn main() -> Result<(), Error> {
                 },
             ],
         },
-    ]));
-
-    let _ = env_logger::try_init();
-    let addr = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "127.0.0.1:3000".to_string());
-
-    // Create the event loop and TCP listener we'll accept connections on.
-    let try_socket = TcpListener::bind(&addr).await;
-    let listener = try_socket.expect("Failed to bind");
-    info!("Listening on: {addr}");
-
-    while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(accept_connection(stream, clients.clone(), data.clone()));
-    }
-
-    Ok(())
+    ]))
 }
 
 async fn handle_init(
@@ -113,8 +114,6 @@ async fn handle_init(
             sender: sender.clone(),
         },
     );
-
-    info!("added {}", ev.name);
 
     let serialized_data = serde_json::to_string(&Event {
         t: GRID.to_string(),
@@ -139,6 +138,7 @@ async fn handle_init(
         .expect("can serialize clients list"),
     })
     .expect("can serialize client list event");
+
     clients.read().await.iter().for_each(|client| {
         info!("sending client list to {}", client.1.name);
         let _ = client
@@ -150,18 +150,14 @@ async fn handle_init(
             .sender
             .send((client.1.name.to_owned(), serialized_data.clone()));
     });
-    // info!("new client list: {:?}", clients);
 }
 
 async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
-    info!("handling change {:?}", ev);
-    // change the data
     data.write().await[ev.row].columns[ev.column].value = ev.value.clone();
 
     let updated = data.read_owned().await;
 
     clients.read().await.iter().for_each(|client| {
-        info!("sending to {}", client.1.name);
         let client_msg_event = Event {
             t: GRID.to_string(),
             data: serde_json::to_value(GridEvent {
@@ -182,8 +178,6 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
-    info!("Peer address: {addr}");
-
     let ws_stream = tokio_tungstenite::accept_async(stream)
         .await
         .expect("Error during the websocket handshake occurred");
@@ -231,9 +225,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
             },
             Some(ev) = rx.recv() => {
                 let msg = Message::Text(ev.1.to_owned());
-                info!("sending msg: {} for addr {addr}", msg.clone());
-                sender.send(msg).await.expect(
-                    "msg was sent");
+                sender.send(msg).await.expect("msg was sent");
             },
             _ = interval.tick() => {
                 sender.send(Message::Text("tick".to_owned())).await.expect("can be sent");
