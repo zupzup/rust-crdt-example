@@ -22,8 +22,11 @@ pub fn App() -> impl IntoView {
     let cloned_send = send.clone();
     create_effect(move |_| {
         if let Some(change) = data_change.get() {
-            let mut d = data.get();
-            d[change.row].columns[change.column].value = change.value;
+            set_data_change.update(|dc| *dc = None);
+            set_data.update(|d| d[change.row].columns[change.column].value = change.value);
+            let d = data.get();
+            // TODO: update local peer and increase timestamp
+
             let data_event = serde_json::to_value(GridEvent {
                 data: d,
                 timestamp: 1,
@@ -36,7 +39,6 @@ pub fn App() -> impl IntoView {
             })
             .expect("can be serialized");
             cloned_send(&serialized);
-            set_data_change.update(|dc| *dc = None);
         }
     });
 
@@ -57,6 +59,11 @@ pub fn App() -> impl IntoView {
                     }
                 } else if evt.t == GRID {
                     if let Ok(m) = serde_json::from_value::<GridEvent>(evt.data) {
+                        // TODO: implement CRDT logic
+                        // check remote timestamp and local timestamp
+                        // if remote timestamp is bigger than local, overwrite value, timestamp and
+                        // peer, otherwise discard
+                        // if timestamp is the same, use one at random
                         set_data.update(|d| *d = m.data);
                     }
                 }
@@ -68,6 +75,7 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <div class="container">
+                <span class="hidden">{move || data_change.get().is_some()}</span>
                 <Connect send={send} set_name={set_name}/>
                 <Clients clients={clients}/>
                 <Grid data={data} set_data_change={set_data_change}/>
@@ -143,6 +151,7 @@ fn Grid(
                                   <input type="text" on:input=move |ev| {
                                       let val = event_target_value(&ev);
                                       set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val.clone() }));
+                                      logging::log!("update event");
                                   }
                                   prop:value=move || data.get()[row.idx].columns[col.idx].value.clone()/>
                               }/>

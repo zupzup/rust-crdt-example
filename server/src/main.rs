@@ -16,7 +16,7 @@ type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
 #[derive(Debug, Clone)]
 pub struct WsClient {
     pub name: String,
-    pub sender: UnboundedSender<(String, String)>,
+    pub sender: UnboundedSender<String>,
 }
 
 #[tokio::main]
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Error> {
 async fn handle_init(
     ev: &InitEvent,
     clients: Clients,
-    sender: UnboundedSender<(String, String)>,
+    sender: UnboundedSender<String>,
     client_id: Arc<RwLock<Option<String>>>,
 ) {
     let name = ev.name.to_owned();
@@ -70,10 +70,7 @@ async fn handle_init(
     .expect("can serialize client list event");
 
     clients.read().await.iter().for_each(|client| {
-        let _ = client
-            .1
-            .sender
-            .send((client.1.name.to_owned(), serialized.clone()));
+        let _ = client.1.sender.send(serialized.clone());
     });
 }
 
@@ -100,10 +97,7 @@ async fn handle_close(
         .expect("can serialize client list event");
 
         clients.read().await.iter().for_each(|client| {
-            let _ = client
-                .1
-                .sender
-                .send((client.1.name.to_owned(), serialized.clone()));
+            let _ = client.1.sender.send(serialized.clone());
         });
         info!("disconnected: {:?} at {addr}", ci);
     }
@@ -112,23 +106,23 @@ async fn handle_close(
 async fn handle_change(ev: &GridEvent, clients: Clients) {
     let d = ev.data.clone();
 
-    clients.read().await.iter().for_each(|client| {
-        let client_msg_event = Event {
-            t: GRID.to_string(),
-            data: serde_json::to_value(GridEvent {
-                data: d.clone(),
-                sender: ev.sender.clone(),
-                timestamp: ev.timestamp,
-            })
-            .expect("can serialize GRID event"),
-        };
-        let serialized =
-            serde_json::to_string(&client_msg_event).expect("can serialize client GRID event");
+    let client_msg_event = Event {
+        t: GRID.to_string(),
+        data: serde_json::to_value(GridEvent {
+            data: d.clone(),
+            sender: ev.sender.clone(),
+            timestamp: ev.timestamp,
+        })
+        .expect("can serialize GRID event"),
+    };
 
-        let _ = client
-            .1
-            .sender
-            .send((client.1.name.to_owned(), serialized.clone()));
+    let serialized =
+        serde_json::to_string(&client_msg_event).expect("can serialize client GRID event");
+
+    clients.read().await.iter().for_each(|client| {
+        if client.0 != &ev.sender {
+            let _ = client.1.sender.send(serialized.clone());
+        }
     })
 }
 
@@ -143,7 +137,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
     info!("new ws connection: {addr}");
 
     let (mut sender, mut receiver) = ws_stream.split();
-    let (tx, mut rx) = unbounded_channel::<(String, String)>();
+    let (tx, mut rx) = unbounded_channel::<String>();
     let client_id: Arc<RwLock<Option<String>>> = Arc::new(RwLock::new(None));
 
     loop {
@@ -179,7 +173,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients) {
                 }
             },
             Some(ev) = rx.recv() => {
-                sender.send(Message::Text(ev.1.to_owned())).await.expect("msg was sent");
+                sender.send(Message::Text(ev.to_owned())).await.expect("msg was sent");
             },
         }
     }
