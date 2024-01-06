@@ -4,7 +4,6 @@ use time::OffsetDateTime;
 
 pub const INIT: &str = "INIT";
 pub const GRID: &str = "GRID";
-pub const CHANGE: &str = "CHANGE";
 pub const CLIENT_LIST: &str = "CLIENT_LIST";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,13 +14,6 @@ pub struct Client {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InitEvent {
     pub name: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ChangeEvent {
-    pub row: usize,
-    pub column: usize,
-    pub value: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

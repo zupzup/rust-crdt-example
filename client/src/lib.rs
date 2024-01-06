@@ -1,10 +1,14 @@
 #![allow(non_snake_case)]
-use common::{
-    get_timestamp, init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST,
-    GRID,
-};
+use common::{get_timestamp, init_data, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST, GRID};
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
+
+#[derive(Debug, Clone)]
+pub struct ChangeEvent {
+    pub row: usize,
+    pub column: usize,
+    pub value: String,
+}
 
 #[component]
 pub fn App() -> impl IntoView {
