@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use common::{
-    init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CHANGE, CLIENT_LIST, GRID,
+    get_timestamp, init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CHANGE,
+    CLIENT_LIST, GRID,
 };
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
@@ -21,6 +22,7 @@ pub fn App() -> impl IntoView {
         let serialized = serde_json::to_string(&Event {
             t: CHANGE.to_owned(),
             sender: name.get(),
+            timestamp: get_timestamp(),
             data: change_event,
         })
         .expect("can be serialized");
@@ -77,8 +79,10 @@ where
 
         let name = name_input.get().expect("input exists").value();
         send(&format!(
-            r#"{{"t": "INIT", "sender": "{}", "data": {{ "name": "{}" }} }}"#,
-            name, name
+            r#"{{"t": "INIT", "sender": "{}", "timestamp": {}, "data": {{ "name": "{}" }} }}"#,
+            name,
+            get_timestamp(),
+            name
         ));
         set_connected.update(|c| *c = true);
         set_name.update(|n| *n = name);

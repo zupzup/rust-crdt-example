@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use time::OffsetDateTime;
 
 pub const INIT: &str = "INIT";
 pub const GRID: &str = "GRID";
@@ -49,7 +50,12 @@ pub struct ClientListEvent {
 pub struct Event {
     pub t: String,
     pub sender: String,
+    pub timestamp: i64,
     pub data: Value,
+}
+
+pub fn get_timestamp() -> i64 {
+    OffsetDateTime::now_utc().unix_timestamp()
 }
 
 pub fn init_data() -> Vec<Row> {
