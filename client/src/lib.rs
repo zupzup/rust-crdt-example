@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use common::{get_timestamp, init_data, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST, GRID};
+use common::{init_data, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST, GRID};
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
 
@@ -24,12 +24,14 @@ pub fn App() -> impl IntoView {
         if let Some(change) = data_change.get() {
             let mut d = data.get();
             d[change.row].columns[change.column].value = change.value;
-            let data_event =
-                serde_json::to_value(GridEvent { data: d }).expect("can serialize change event");
+            let data_event = serde_json::to_value(GridEvent {
+                data: d,
+                timestamp: 1,
+                sender: name.get(),
+            })
+            .expect("can serialize change event");
             let serialized = serde_json::to_string(&Event {
                 t: GRID.to_owned(),
-                sender: name.get(),
-                timestamp: get_timestamp(),
                 data: data_event,
             })
             .expect("can be serialized");
@@ -87,10 +89,8 @@ where
 
         let name = name_input.get().expect("input exists").value();
         send(&format!(
-            r#"{{"t": "INIT", "sender": "{}", "timestamp": {}, "data": {{ "name": "{}" }} }}"#,
+            r#"{{"t": "INIT","data": {{ "name": "{}" }} }}"#,
             name,
-            get_timestamp(),
-            name
         ));
         set_connected.update(|c| *c = true);
         set_name.update(|n| *n = name);

@@ -1,7 +1,4 @@
-use common::{
-    get_timestamp, init_data, Client, ClientListEvent, Event, GridEvent, InitEvent, Row,
-    CLIENT_LIST, GRID, INIT,
-};
+use common::{Client, ClientListEvent, Event, GridEvent, InitEvent, CLIENT_LIST, GRID, INIT};
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
 use std::collections::HashMap;
@@ -15,7 +12,6 @@ use tokio::sync::{
 use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
-type Data = Arc<RwLock<Vec<Row>>>;
 
 #[derive(Debug, Clone)]
 pub struct WsClient {
@@ -26,7 +22,6 @@ pub struct WsClient {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
-    let data = Arc::new(RwLock::new(init_data()));
     let _ = env_logger::try_init();
     let addr = env::args()
         .nth(1)
@@ -37,7 +32,7 @@ async fn main() -> Result<(), Error> {
     info!("WS Listening on: {addr}");
 
     while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(accept_connection(stream, clients.clone(), data.clone()));
+        tokio::spawn(accept_connection(stream, clients.clone()));
     }
 
     Ok(())
@@ -46,7 +41,6 @@ async fn main() -> Result<(), Error> {
 async fn handle_init(
     ev: &InitEvent,
     clients: Clients,
-    data: Data,
     sender: UnboundedSender<(String, String)>,
     client_id: Arc<RwLock<Option<String>>>,
 ) {
@@ -60,21 +54,8 @@ async fn handle_init(
         },
     );
 
-    let serialized_data = serde_json::to_string(&Event {
-        t: GRID.to_string(),
-        timestamp: get_timestamp(),
-        sender: name.clone(),
-        data: serde_json::to_value(GridEvent {
-            data: data.read().await.clone(),
-        })
-        .expect("can serialize data"),
-    })
-    .expect("can serialize data event");
-
     let serialized = serde_json::to_string(&Event {
         t: CLIENT_LIST.to_string(),
-        sender: name.clone(),
-        timestamp: get_timestamp(),
         data: serde_json::to_value(ClientListEvent {
             clients: clients
                 .read()
@@ -93,11 +74,6 @@ async fn handle_init(
             .1
             .sender
             .send((client.1.name.to_owned(), serialized.clone()));
-
-        let _ = client
-            .1
-            .sender
-            .send((client.1.name.to_owned(), serialized_data.clone()));
     });
 }
 
@@ -110,8 +86,6 @@ async fn handle_close(
         clients.as_ref().write().await.remove(ci);
         let serialized = serde_json::to_string(&Event {
             t: CLIENT_LIST.to_string(),
-            sender: ci.clone(),
-            timestamp: get_timestamp(),
             data: serde_json::to_value(ClientListEvent {
                 clients: clients
                     .read()
@@ -135,20 +109,16 @@ async fn handle_close(
     }
 }
 
-async fn handle_change(ev: &GridEvent, clients: Clients, data: Data, sender: String) {
+async fn handle_change(ev: &GridEvent, clients: Clients) {
     let d = ev.data.clone();
-    *data.write().await = d.clone();
-
-    // TODO: implement CRDT logic
-    let updated = data.read().await;
 
     clients.read().await.iter().for_each(|client| {
         let client_msg_event = Event {
             t: GRID.to_string(),
-            sender: sender.clone(),
-            timestamp: get_timestamp(),
             data: serde_json::to_value(GridEvent {
-                data: updated.clone(),
+                data: d.clone(),
+                sender: ev.sender.clone(),
+                timestamp: ev.timestamp,
             })
             .expect("can serialize GRID event"),
         };
@@ -162,7 +132,7 @@ async fn handle_change(ev: &GridEvent, clients: Clients, data: Data, sender: Str
     })
 }
 
-async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
+async fn accept_connection(stream: TcpStream, clients: Clients) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -187,12 +157,12 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                 match evt.t.as_str() {
                                     INIT => {
                                         if let Ok(event) = serde_json::from_value::<InitEvent>(evt.data) {
-                                            handle_init(&event, clients.clone(), data.clone(), tx.clone(), client_id.clone()).await;
+                                            handle_init(&event, clients.clone(), tx.clone(), client_id.clone()).await;
                                         }
                                     },
                                     GRID => {
                                         if let Ok(event) = serde_json::from_value::<GridEvent>(evt.data) {
-                                            handle_change(&event, clients.clone(), data.clone(), evt.sender.clone()).await;
+                                            handle_change(&event, clients.clone()).await;
                                         }
                                     }
                                     event_type => {
