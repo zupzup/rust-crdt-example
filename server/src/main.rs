@@ -48,9 +48,12 @@ async fn handle_init(
     clients: Clients,
     data: Data,
     sender: UnboundedSender<(String, String)>,
+    client_id: Arc<RwLock<Option<String>>>,
 ) {
+    let name = ev.name.to_owned();
+    *client_id.write().await = Some(name.clone());
     clients.as_ref().write().await.insert(
-        ev.name.to_owned(),
+        name.clone(),
         WsClient {
             name: ev.name.to_owned(),
             sender: sender.clone(),
@@ -59,6 +62,7 @@ async fn handle_init(
 
     let serialized_data = serde_json::to_string(&Event {
         t: GRID.to_string(),
+        sender: name.clone(),
         data: serde_json::to_value(GridEvent {
             data: data.read().await.clone(),
         })
@@ -68,6 +72,7 @@ async fn handle_init(
 
     let serialized = serde_json::to_string(&Event {
         t: CLIENT_LIST.to_string(),
+        sender: name.clone(),
         data: serde_json::to_value(ClientListEvent {
             clients: clients
                 .read()
@@ -94,7 +99,7 @@ async fn handle_init(
     });
 }
 
-async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
+async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data, sender: String) {
     data.write().await[ev.row].columns[ev.column].value = ev.value.clone();
 
     let updated = data.read().await;
@@ -102,6 +107,7 @@ async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
     clients.read().await.iter().for_each(|client| {
         let client_msg_event = Event {
             t: GRID.to_string(),
+            sender: sender.clone(),
             data: serde_json::to_value(GridEvent {
                 data: updated.clone(),
             })
@@ -129,6 +135,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
 
     let (mut sender, mut receiver) = ws_stream.split();
     let (tx, mut rx) = unbounded_channel::<(String, String)>();
+    let client_id: Arc<RwLock<Option<String>>> = Arc::new(RwLock::new(None));
 
     loop {
         tokio::select! {
@@ -141,12 +148,12 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                 match evt.t.as_str() {
                                     INIT => {
                                         if let Ok(event) = serde_json::from_value::<InitEvent>(evt.data) {
-                                            handle_init(&event, clients.clone(), data.clone(), tx.clone()).await;
+                                            handle_init(&event, clients.clone(), data.clone(), tx.clone(), client_id.clone()).await;
                                         }
                                     },
                                     CHANGE => {
                                         if let Ok(event) = serde_json::from_value::<ChangeEvent>(evt.data) {
-                                            handle_change(&event, clients.clone(), data.clone()).await;
+                                            handle_change(&event, clients.clone(), data.clone(), evt.sender.clone()).await;
                                         }
                                     }
                                     event_type => {
@@ -155,7 +162,10 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                 }
                             }
                         } else if msg.is_close() {
-                            info!("disconnected: {addr}");
+                            if let Some(ref ci) = *client_id.read().await {
+                                clients.as_ref().write().await.remove(ci);
+                                info!("disconnected: {:?} at {addr}", ci);
+                            }
                             break;
                         }
                     }

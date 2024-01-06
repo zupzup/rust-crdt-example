@@ -48,6 +48,7 @@ pub struct ClientListEvent {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Event {
     pub t: String,
+    pub sender: String,
     pub data: Value,
 }
 

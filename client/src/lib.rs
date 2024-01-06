@@ -12,6 +12,7 @@ pub fn App() -> impl IntoView {
     let (clients, set_clients) = create_signal(vec![]);
     let (data_change, set_data_change) = create_signal::<Option<ChangeEvent>>(None);
     let (data, set_data) = create_signal(init_data());
+    let (name, set_name) = create_signal(String::default());
 
     let cloned_send = send.clone();
     create_effect(move |_| {
@@ -19,6 +20,7 @@ pub fn App() -> impl IntoView {
         let change_event = serde_json::to_value(&change).expect("can serialize change event");
         let serialized = serde_json::to_string(&Event {
             t: CHANGE.to_owned(),
+            sender: name.get(),
             data: change_event,
         })
         .expect("can be serialized");
@@ -54,7 +56,7 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <div class="container">
-                <Connect send=send />
+                <Connect send={send} set_name={set_name}/>
                 <Clients clients={clients}/>
                 <Grid data={data} set_data_change={set_data_change}/>
             </div>
@@ -63,7 +65,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-pub fn Connect<F>(send: F) -> impl IntoView
+pub fn Connect<F>(send: F, set_name: WriteSignal<String>) -> impl IntoView
 where
     F: Fn(&str) + Clone + 'static,
 {
@@ -75,10 +77,11 @@ where
 
         let name = name_input.get().expect("input exists").value();
         send(&format!(
-            r#"{{"t": "INIT", "data": {{ "name": "{}" }} }}"#,
-            name
+            r#"{{"t": "INIT", "sender": "{}", "data": {{ "name": "{}" }} }}"#,
+            name, name
         ));
         set_connected.update(|c| *c = true);
+        set_name.update(|n| *n = name);
     };
 
     view! {
