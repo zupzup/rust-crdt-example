@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use common::{
-    get_timestamp, init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CHANGE,
-    CLIENT_LIST, GRID,
+    get_timestamp, init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST,
+    GRID,
 };
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
@@ -17,17 +17,21 @@ pub fn App() -> impl IntoView {
 
     let cloned_send = send.clone();
     create_effect(move |_| {
-        let change = data_change.get();
-        let change_event = serde_json::to_value(&change).expect("can serialize change event");
-        let serialized = serde_json::to_string(&Event {
-            t: CHANGE.to_owned(),
-            sender: name.get(),
-            timestamp: get_timestamp(),
-            data: change_event,
-        })
-        .expect("can be serialized");
-        cloned_send(&serialized);
-        change
+        if let Some(change) = data_change.get() {
+            let mut d = data.get();
+            d[change.row].columns[change.column].value = change.value;
+            let data_event =
+                serde_json::to_value(GridEvent { data: d }).expect("can serialize change event");
+            let serialized = serde_json::to_string(&Event {
+                t: GRID.to_owned(),
+                sender: name.get(),
+                timestamp: get_timestamp(),
+                data: data_event,
+            })
+            .expect("can be serialized");
+            cloned_send(&serialized);
+            set_data_change.update(|dc| *dc = None);
+        }
     });
 
     create_effect(move |_| {
@@ -134,7 +138,7 @@ fn Grid(
                               children=move |col| view! {
                                   <input type="text" on:input=move |ev| {
                                       let val = event_target_value(&ev);
-                                      set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val }));
+                                      set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val.clone() }));
                                   }
                                   prop:value=move || data.get()[row.idx].columns[col.idx].value.clone()/>
                               }/>

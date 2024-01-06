@@ -1,6 +1,6 @@
 use common::{
-    get_timestamp, init_data, ChangeEvent, Client, ClientListEvent, Event, GridEvent, InitEvent,
-    Row, CHANGE, CLIENT_LIST, GRID, INIT,
+    get_timestamp, init_data, Client, ClientListEvent, Event, GridEvent, InitEvent, Row,
+    CLIENT_LIST, GRID, INIT,
 };
 use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
@@ -101,8 +101,43 @@ async fn handle_init(
     });
 }
 
-async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data, sender: String) {
-    data.write().await[ev.row].columns[ev.column].value = ev.value.clone();
+async fn handle_close(
+    clients: Clients,
+    client_id: Arc<RwLock<Option<String>>>,
+    addr: std::net::SocketAddr,
+) {
+    if let Some(ref ci) = *client_id.read().await {
+        clients.as_ref().write().await.remove(ci);
+        let serialized = serde_json::to_string(&Event {
+            t: CLIENT_LIST.to_string(),
+            sender: ci.clone(),
+            timestamp: get_timestamp(),
+            data: serde_json::to_value(ClientListEvent {
+                clients: clients
+                    .read()
+                    .await
+                    .clone()
+                    .into_values()
+                    .map(|c| Client { name: c.name })
+                    .collect(),
+            })
+            .expect("can serialize clients list"),
+        })
+        .expect("can serialize client list event");
+
+        clients.read().await.iter().for_each(|client| {
+            let _ = client
+                .1
+                .sender
+                .send((client.1.name.to_owned(), serialized.clone()));
+        });
+        info!("disconnected: {:?} at {addr}", ci);
+    }
+}
+
+async fn handle_change(ev: &GridEvent, clients: Clients, data: Data, sender: String) {
+    let d = ev.data.clone();
+    *data.write().await = d.clone();
 
     let updated = data.read().await;
 
@@ -117,7 +152,7 @@ async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data, sender: S
             .expect("can serialize GRID event"),
         };
         let serialized =
-            serde_json::to_string(&client_msg_event).expect("can serialized client GRID event");
+            serde_json::to_string(&client_msg_event).expect("can serialize client GRID event");
 
         let _ = client
             .1
@@ -154,8 +189,8 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                             handle_init(&event, clients.clone(), data.clone(), tx.clone(), client_id.clone()).await;
                                         }
                                     },
-                                    CHANGE => {
-                                        if let Ok(event) = serde_json::from_value::<ChangeEvent>(evt.data) {
+                                    GRID => {
+                                        if let Ok(event) = serde_json::from_value::<GridEvent>(evt.data) {
                                             handle_change(&event, clients.clone(), data.clone(), evt.sender.clone()).await;
                                         }
                                     }
@@ -165,10 +200,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                 }
                             }
                         } else if msg.is_close() {
-                            if let Some(ref ci) = *client_id.read().await {
-                                clients.as_ref().write().await.remove(ci);
-                                info!("disconnected: {:?} at {addr}", ci);
-                            }
+                            handle_close(clients.clone(), client_id.clone(), addr).await;
                             break;
                         }
                     }
