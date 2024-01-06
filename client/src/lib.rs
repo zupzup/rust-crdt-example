@@ -8,6 +8,7 @@ use leptos_use::{use_websocket, UseWebsocketReturn};
 #[component]
 pub fn App() -> impl IntoView {
     let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
+
     let (clients, set_clients) = create_signal(vec![]);
     let (data_change, set_data_change) = create_signal::<Option<ChangeEvent>>(None);
     let (data, set_data) = create_signal(init_data());
@@ -15,13 +16,14 @@ pub fn App() -> impl IntoView {
     let cloned_send = send.clone();
     create_effect(move |_| {
         let change = data_change.get();
-        let change_event = serde_json::to_value(change).expect("can serialize change event");
+        let change_event = serde_json::to_value(&change).expect("can serialize change event");
         let serialized = serde_json::to_string(&Event {
             t: CHANGE.to_owned(),
             data: change_event,
         })
         .expect("can be serialized");
         cloned_send(&serialized);
+        change
     });
 
     create_effect(move |_| {
@@ -55,34 +57,6 @@ pub fn App() -> impl IntoView {
                 <Connect send=send />
                 <Clients clients={clients}/>
                 <Grid data={data} set_data_change={set_data_change}/>
-            </div>
-        </div>
-    }
-}
-
-#[component]
-fn Grid(
-    data: ReadSignal<Vec<Row>>,
-    set_data_change: WriteSignal<Option<ChangeEvent>>,
-) -> impl IntoView {
-    view! {
-        <div class="grid-container">
-            <div class="grid">
-                <For each=move || data.get()
-                 key=|r| r.idx
-                 children=move |row| view! {
-                     <div class="row">
-                         <For each=move || row.columns.clone()
-                              key=move |c| format!("{}{}", row.idx, c.idx)
-                              children=move |col| view! {
-                                  <input type="text" on:input=move |ev| {
-                                      let val = event_target_value(&ev);
-                                      set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val }));
-                                  }
-                                  prop:value=move || data.get()[row.idx].columns[col.idx].value.clone()/>
-                              }/>
-                     </div>
-                }/>
             </div>
         </div>
     }
@@ -132,6 +106,34 @@ pub fn Clients(clients: ReadSignal<Vec<String>>) -> impl IntoView {
                     children=|child| view! { <li>{child}</li>}
                 />
             </ul>
+        </div>
+    }
+}
+
+#[component]
+fn Grid(
+    data: ReadSignal<Vec<Row>>,
+    set_data_change: WriteSignal<Option<ChangeEvent>>,
+) -> impl IntoView {
+    view! {
+        <div class="grid-container">
+            <div class="grid">
+                <For each=move || data.get()
+                 key=|r| r.idx
+                 children=move |row| view! {
+                     <div class="row">
+                         <For each=move || row.columns.clone()
+                              key=move |c| format!("{}{}", row.idx, c.idx)
+                              children=move |col| view! {
+                                  <input type="text" on:input=move |ev| {
+                                      let val = event_target_value(&ev);
+                                      set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val }));
+                                  }
+                                  prop:value=move || data.get()[row.idx].columns[col.idx].value.clone()/>
+                              }/>
+                     </div>
+                }/>
+            </div>
         </div>
     }
 }

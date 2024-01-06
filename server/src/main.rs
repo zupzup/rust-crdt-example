@@ -6,7 +6,6 @@ use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use std::{env, io::Error};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{
@@ -16,8 +15,7 @@ use tokio::sync::{
 use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
-
-pub type Data = Arc<RwLock<Vec<Row>>>;
+type Data = Arc<RwLock<Vec<Row>>>;
 
 #[derive(Debug, Clone)]
 pub struct WsClient {
@@ -84,11 +82,11 @@ async fn handle_init(
     .expect("can serialize client list event");
 
     clients.read().await.iter().for_each(|client| {
-        info!("sending client list to {}", client.1.name);
         let _ = client
             .1
             .sender
             .send((client.1.name.to_owned(), serialized.clone()));
+
         let _ = client
             .1
             .sender
@@ -99,7 +97,7 @@ async fn handle_init(
 async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
     data.write().await[ev.row].columns[ev.column].value = ev.value.clone();
 
-    let updated = data.read_owned().await;
+    let updated = data.read().await;
 
     clients.read().await.iter().for_each(|client| {
         let client_msg_event = Event {
@@ -111,6 +109,7 @@ async fn handle_change(ev: &ChangeEvent, clients: Clients, data: Data) {
         };
         let serialized =
             serde_json::to_string(&client_msg_event).expect("can serialized client GRID event");
+
         let _ = client
             .1
             .sender
@@ -126,11 +125,9 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
         .await
         .expect("Error during the websocket handshake occurred");
 
-    info!("New WebSocket connection: {addr}");
+    info!("new ws connection: {addr}");
 
     let (mut sender, mut receiver) = ws_stream.split();
-    let mut interval = tokio::time::interval(Duration::from_millis(5000));
-
     let (tx, mut rx) = unbounded_channel::<(String, String)>();
 
     loop {
@@ -140,8 +137,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                     Some(msg) => {
                         let msg = msg.expect("msg is there");
                         if msg.is_text() {
-                            let txt = msg.to_text().expect("msg is text");
-                            if let Ok(evt) = serde_json::from_str::<Event>(txt) {
+                            if let Ok(evt) = serde_json::from_str::<Event>(msg.to_text().expect("msg is text")) {
                                 match evt.t.as_str() {
                                     INIT => {
                                         if let Ok(event) = serde_json::from_value::<InitEvent>(evt.data) {
@@ -157,10 +153,9 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                         warn!("unknown event: {event_type}");
                                     }
                                 }
-                            } else {
-                                warn!("not an event: {txt}");
                             }
                         } else if msg.is_close() {
+                            info!("disconnected: {addr}");
                             break;
                         }
                     }
@@ -168,12 +163,8 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                 }
             },
             Some(ev) = rx.recv() => {
-                let msg = Message::Text(ev.1.to_owned());
-                sender.send(msg).await.expect("msg was sent");
+                sender.send(Message::Text(ev.1.to_owned())).await.expect("msg was sent");
             },
-            _ = interval.tick() => {
-                sender.send(Message::Text("tick".to_owned())).await.expect("can be sent");
-            }
         }
     }
 }
