@@ -139,6 +139,7 @@ async fn handle_change(ev: &GridEvent, clients: Clients, data: Data, sender: Str
     let d = ev.data.clone();
     *data.write().await = d.clone();
 
+    // TODO: implement CRDT logic
     let updated = data.read().await;
 
     clients.read().await.iter().for_each(|client| {
