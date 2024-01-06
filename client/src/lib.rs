@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use common::{init_data, ClientListEvent, Event, GridEvent, Row, CLIENT_LIST, GRID};
+use common::{ClientListEvent, Column, Event, GridEvent, Row, CLIENT_LIST, GRID};
 use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
 
@@ -16,7 +16,7 @@ pub fn App() -> impl IntoView {
 
     let (clients, set_clients) = create_signal(vec![]);
     let (data_change, set_data_change) = create_signal::<Option<ChangeEvent>>(None);
-    let (data, set_data) = create_signal(init_data());
+    let (data, set_data) = create_signal(init_data()); // TODO: move init_data here, add sender and timestamp to data
     let (name, set_name) = create_signal(String::default());
 
     let cloned_send = send.clone();
@@ -160,4 +160,60 @@ fn Grid(
             </div>
         </div>
     }
+}
+
+pub fn init_data() -> Vec<Row> {
+    vec![
+        Row {
+            idx: 0,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 1,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 2,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+    ]
 }
