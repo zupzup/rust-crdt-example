@@ -1,72 +1,16 @@
 #![allow(non_snake_case)]
 use common::{
-    ChangeEvent, ClientListEvent, Column, Event, GridEvent, Row, CHANGE, CLIENT_LIST, GRID,
+    init_data, ChangeEvent, ClientListEvent, Event, GridEvent, Row, CHANGE, CLIENT_LIST, GRID,
 };
-use leptos::*;
+use leptos::{ev::SubmitEvent, html::Input, *};
 use leptos_use::{use_websocket, UseWebsocketReturn};
-
-mod clients;
-mod connect;
-mod grid;
 
 #[component]
 pub fn App() -> impl IntoView {
     let UseWebsocketReturn { message, send, .. } = use_websocket("ws://localhost:3000/");
     let (clients, set_clients) = create_signal(vec![]);
     let (data_change, set_data_change) = create_signal::<Option<ChangeEvent>>(None);
-    let (data, set_data) = create_signal(vec![
-        Row {
-            idx: 0,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-        Row {
-            idx: 1,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-        Row {
-            idx: 2,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-    ]);
+    let (data, set_data) = create_signal(init_data());
 
     let cloned_send = send.clone();
     create_effect(move |_| {
@@ -108,10 +52,86 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <div class="container">
-                <connect::Connect send=send />
-                <clients::Clients clients={clients}/>
-                <grid::Grid data={data} set_data_change={set_data_change}/>
+                <Connect send=send />
+                <Clients clients={clients}/>
+                <Grid data={data} set_data_change={set_data_change}/>
             </div>
+        </div>
+    }
+}
+
+#[component]
+fn Grid(
+    data: ReadSignal<Vec<Row>>,
+    set_data_change: WriteSignal<Option<ChangeEvent>>,
+) -> impl IntoView {
+    view! {
+        <div class="grid-container">
+            <div class="grid">
+                <For each=move || data.get()
+                 key=|r| r.idx
+                 children=move |row| view! {
+                     <div class="row">
+                         <For each=move || row.columns.clone()
+                              key=move |c| format!("{}{}", row.idx, c.idx)
+                              children=move |col| view! {
+                                  <input type="text" on:input=move |ev| {
+                                      let val = event_target_value(&ev);
+                                      set_data_change.update(|dc| *dc = Some(ChangeEvent { row: row.idx, column: col.idx, value: val }));
+                                  }
+                                  prop:value=move || data.get()[row.idx].columns[col.idx].value.clone()/>
+                              }/>
+                     </div>
+                }/>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+pub fn Connect<F>(send: F) -> impl IntoView
+where
+    F: Fn(&str) + Clone + 'static,
+{
+    let (connected, set_connected) = create_signal(false);
+    let name_input: NodeRef<Input> = create_node_ref();
+
+    let submit_handler = move |ev: SubmitEvent| {
+        ev.prevent_default();
+
+        let name = name_input.get().expect("input exists").value();
+        send(&format!(
+            r#"{{"t": "INIT", "data": {{ "name": "{}" }} }}"#,
+            name
+        ));
+        set_connected.update(|c| *c = true);
+    };
+
+    view! {
+        <div class="connect">
+            <div class="connect-name">
+                <form on:submit=submit_handler>
+                    <span>Name</span>
+                    <span><input type="text" name="name" node_ref=name_input disabled=move|| connected.get()/></span>
+                    <span><input type="submit" disabled=move || connected.get() value="connect"/></span>
+                </form>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+pub fn Clients(clients: ReadSignal<Vec<String>>) -> impl IntoView {
+    view! {
+        <div class="clients">
+            <span>Clients</span>
+            <ul class="clients-list">
+                <For
+                    each=move || clients.get()
+                    key=|state| state.clone()
+                    children=|child| view! { <li>{child}</li>}
+                />
+            </ul>
         </div>
     }
 }

@@ -50,3 +50,59 @@ pub struct Event {
     pub t: String,
     pub data: Value,
 }
+
+pub fn init_data() -> Vec<Row> {
+    vec![
+        Row {
+            idx: 0,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 1,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+        Row {
+            idx: 2,
+            columns: vec![
+                Column {
+                    idx: 0,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 1,
+                    value: String::from(""),
+                },
+                Column {
+                    idx: 2,
+                    value: String::from(""),
+                },
+            ],
+        },
+    ]
+}

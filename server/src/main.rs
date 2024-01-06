@@ -1,5 +1,5 @@
 use common::{
-    ChangeEvent, Client, ClientListEvent, Column, Event, GridEvent, InitEvent, Row, CHANGE,
+    init_data, ChangeEvent, Client, ClientListEvent, Event, GridEvent, InitEvent, Row, CHANGE,
     CLIENT_LIST, GRID, INIT,
 };
 use futures_util::{SinkExt, StreamExt};
@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 type Clients = Arc<RwLock<HashMap<String, WsClient>>>;
 
-type Data = Arc<RwLock<Vec<Row>>>;
+pub type Data = Arc<RwLock<Vec<Row>>>;
 
 #[derive(Debug, Clone)]
 pub struct WsClient {
@@ -28,7 +28,7 @@ pub struct WsClient {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
-    let data = init_data();
+    let data = Arc::new(RwLock::new(init_data()));
     let _ = env_logger::try_init();
     let addr = env::args()
         .nth(1)
@@ -43,62 +43,6 @@ async fn main() -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-fn init_data() -> Data {
-    Arc::new(RwLock::new(vec![
-        Row {
-            idx: 0,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-        Row {
-            idx: 1,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-        Row {
-            idx: 2,
-            columns: vec![
-                Column {
-                    idx: 0,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 1,
-                    value: String::from(""),
-                },
-                Column {
-                    idx: 2,
-                    value: String::from(""),
-                },
-            ],
-        },
-    ]))
 }
 
 async fn handle_init(
@@ -214,7 +158,7 @@ async fn accept_connection(stream: TcpStream, clients: Clients, data: Data) {
                                     }
                                 }
                             } else {
-                                warn!("unknown event: {txt}");
+                                warn!("not an event: {txt}");
                             }
                         } else if msg.is_close() {
                             break;
