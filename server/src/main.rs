@@ -114,7 +114,6 @@ async fn handle_change(ev: &GridEvent, clients: Clients) {
         data: serde_json::to_value(GridEvent {
             data: d.clone(),
             sender: ev.sender.clone(),
-            timestamp: ev.timestamp,
         })
         .expect("can serialize GRID event"),
     };

@@ -19,7 +19,6 @@ pub struct InitEvent {
 pub struct GridEvent {
     pub data: Vec<Row>,
     pub sender: String,
-    pub timestamp: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

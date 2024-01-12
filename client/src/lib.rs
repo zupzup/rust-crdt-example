@@ -40,7 +40,6 @@ pub fn App() -> impl IntoView {
 
             let data_event = serde_json::to_value(GridEvent {
                 data: d,
-                timestamp: 1,
                 sender: name.get(),
             })
             .expect("can serialize change event");
